@@ -7,8 +7,9 @@ AbstractState = namedtuple('State', [
     'water_spilled', 'action'
 ])
 
+
 # Abstract class for cause-effect relations
-# When the condition holds, the effect is scheduled for a random time in the 
+# When the condition holds, the effect is scheduled for a random time in the
 # future
 class CausalProcess:
 
@@ -44,6 +45,7 @@ class GaussianDelay:
             delay = int(random.gauss(self.mean, self.std) + 0.5)
             if delay > 0:
                 return delay
+
 
 # Example processes for the boiling water environment
 

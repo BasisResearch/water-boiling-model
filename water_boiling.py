@@ -11,23 +11,26 @@ the condition holds for a certain number of time steps.0
 from typing import Dict, List
 import random
 
-from water_boiling_processes import (AbstractState, CausalProcess, ToggleFaucet, 
-                                    ToggleStove, MoveToFaucet, MoveToStove, 
-                                    Noop, FillPot, OverfillPot, Boil)
+from water_boiling_processes import (AbstractState, CausalProcess,
+                                     ToggleFaucet, ToggleStove, MoveToFaucet,
+                                     MoveToStove, Noop, FillPot, OverfillPot,
+                                     Boil)
 
 random.seed(0)
+
 
 # The environment keeps track of the state, history, and cause-effects whose condition has been triggered but whose effect has not yet "landed", meaning they are scheduled for the future
 class ProcessWorldModel:
 
-    def __init__(self, processes, initial_state):
+    def __init__(self, processes: List[CausalProcess],
+                 initial_state: AbstractState) -> None:
         self.processes = processes
         self.state = initial_state
         self.history = [initial_state]
         self.scheduled_events: Dict[int, List[CausalProcess]] = {}
         self.t: int = 0
 
-    def small_step(self, action=None):
+    def small_step(self, action=None) -> None:
         initial_state = self.state
 
         # 1. Process the action
@@ -50,10 +53,8 @@ class ProcessWorldModel:
             if process.condition(self.history):
                 delay = process.delay_distribution.sample()
                 schedule_time = self.t + delay
-                print(
-                    f"At time {self.t}, {process.name}.effect scheduled for "
-                    f"{schedule_time}"
-                )
+                print(f"At time {self.t}, {process.name}.effect scheduled for "
+                      f"{schedule_time}")
                 if schedule_time not in self.scheduled_events:
                     self.scheduled_events[schedule_time] = list()
                 self.scheduled_events[schedule_time].append(process)
@@ -81,23 +82,29 @@ class ProcessWorldModel:
 
         self.t += 1
 
-    def big_step(self, action=None):
-        """action is passed to small_step for the first time step, and then
+    def big_step(self, action=None) -> AbstractState:
+        """This action variable doesn't hold the same value as the action 
+        attribute in the state.
+        `action` here is passed to small_step for the first time step, and then
         set to None. This is just to initiate the action process.
         In contrast, the action attribute in state is set to that action until 
-        the effect take place."""
+        the effect take place.
+        The loop stops when self.small_step changes the state when action is not
+        None (i.e. after the first iteration).
+        """
         initial_state = self.state
         while self.state == initial_state:
             self.small_step(action)
+            # hypothesis: the action is only non-None for the first time step
+            print(f"action in big_step: {action}")
             if action is not None:
                 # update the initial state and set action to None
                 initial_state = self.state
                 action = None
-        print(
-            f"Stopping big step because state changed from this:\n"
-            f"\t{initial_state}\nto this:\n\t{self.state}"
-        )
+        print(f"Stopping big step because state changed from this:\n"
+              f"\t{initial_state}\nto this:\n\t{self.state}")
         return self.state
+
 
 world_model = ProcessWorldModel(
     [
@@ -112,13 +119,12 @@ world_model = ProcessWorldModel(
     ],
     # initial state
     AbstractState(boiling=False,
-          pot_location="table",
-          stove_on=False,
-          faucet_on=False,
-          pot_filled=False,
-          water_spilled=False,
-          action=None))
-
+                  pot_location="table",
+                  stove_on=False,
+                  faucet_on=False,
+                  pot_filled=False,
+                  water_spilled=False,
+                  action=None))
 
 if __name__ == "__main__":
 
@@ -145,14 +151,14 @@ if __name__ == "__main__":
             state.action != "toggle_stove":
             return "action", "toggle_stove"
 
-    # a policy that is more of a plan and which should be run in between big 
+    # a policy that is more of a plan and which should be run in between big
     # steps
     big_step_plan = [
         ("action", "move_to_faucet"),
         ("action", "toggle_faucet"),
         ("action", "noop"),
         # None,  # wait for the faucet to fill the pot
-        # note that if you put this extra None here, we will keep on waiting 
+        # note that if you put this extra None here, we will keep on waiting
         # after the pot is filled, which causes it to spill
         # boiling still works but the final state has water_spilled=True
         # None,
