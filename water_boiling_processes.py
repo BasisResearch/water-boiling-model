@@ -2,6 +2,8 @@ from typing import Dict, List
 from collections import namedtuple
 import random
 
+toggle_move_delay = 5
+
 AbstractState = namedtuple('State', [
     'boiling', 'pot_location', 'stove_on', 'faucet_on', 'pot_filled',
     'water_spilled', 'action'
@@ -23,12 +25,12 @@ class CausalProcess:
         """The condition that must be hold for the process to be scheduled
         """
         raise NotImplementedError
-    
+
     def condition_overall(self, history_slice):
         """The condition that must be hold for every state in the history slice
         """
         return True
-    
+
     def condition_at_end(self, current_state):
         """The condition that must be hold for the last state in the history 
         slice."""
@@ -81,7 +83,6 @@ class ToggleFaucet(CausalProcess):
     def effect(self, state):
         return state._replace(faucet_on=not state.faucet_on, action=None)
 
-toggle_move_delay = 5
 
 class ToggleStove(CausalProcess):
 
@@ -146,7 +147,7 @@ class Noop(CausalProcess):
             return s.action == "noop"
 
         return check(history[-1]) and (len(history) == 1
-                                      or not check(history[-2]))
+                                       or not check(history[-2]))
 
     def effect(self, state):
         return state._replace(action=None)
@@ -167,10 +168,12 @@ class FillPot(CausalProcess):
 
         return check(history[-1]) and (len(history) == 1
                                        or not check(history[-2]))
-    
+
     def condition_overall(self, history_slice):
+
         def check(s):
             return s.pot_location == "faucet" and s.faucet_on
+
         return all([check(s) for s in history_slice])
 
     def effect(self, state):
@@ -199,8 +202,9 @@ class OverfillPot(CausalProcess):
     def effect(self, state):
         return state._replace(water_spilled=True)
 
-class Spill(CausalProcess):  
-    # water can spill whenever you're running the faucet and there's no pot to 
+
+class Spill(CausalProcess):
+    # water can spill whenever you're running the faucet and there's no pot to
     # catch the water
 
     def __init__(self):
@@ -218,6 +222,7 @@ class Spill(CausalProcess):
     def effect(self, state):
         return state._replace(water_spilled=True)
 
+
 class Boil(CausalProcess):
 
     def __init__(self):
@@ -227,12 +232,15 @@ class Boil(CausalProcess):
 
         def check(s):
             return s.pot_location == "stove" and s.stove_on and s.pot_filled
+
         return check(history[-1]) and (len(history) == 1
                                        or not check(history[-2]))
-    
+
     def condition_overall(self, history_slice):
+
         def check(s):
             return s.pot_location == "stove" and s.stove_on and s.pot_filled
+
         return all([check(s) for s in history_slice])
 
     def effect(self, state):

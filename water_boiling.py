@@ -33,7 +33,7 @@ class ProcessWorldModel:
     def small_step(self, action=None) -> None:
         initial_state = self.state
 
-        # 1. Process the action; this is checked in the condition of some 
+        # 1. Process the action; this is checked in the condition of some
         # processes
         if action is not None:
             # action is of the form do(var)=val

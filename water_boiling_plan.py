@@ -3,8 +3,8 @@ from copy import deepcopy
 import itertools  # Add this import for the counter
 
 from water_boiling import world_model
-from water_boiling_processes import (Noop, ToggleFaucet, ToggleStove, 
-                                    MoveToFaucet, MoveToStove)
+from water_boiling_processes import (Noop, ToggleFaucet, ToggleStove,
+                                     MoveToFaucet, MoveToStove)
 
 
 def heuristic(state):
@@ -28,6 +28,7 @@ def is_goal(state):
     # return state.pot_filled
     return state.boiling and not state.water_spilled
 
+
 action_to_process = {
     "noop": Noop(),
     "toggle_faucet": ToggleFaucet(),
@@ -36,11 +37,15 @@ action_to_process = {
     "move_to_stove": MoveToStove()
 }
 
+
 def get_possible_actions(history):
-    actions = [("action", "noop"),
-               ("action", "move_to_faucet"), ("action", "move_to_stove"),
-               ("action", "toggle_faucet"), ("action", "toggle_stove"),
-               ]
+    actions = [
+        ("action", "noop"),
+        ("action", "move_to_faucet"),
+        ("action", "move_to_stove"),
+        ("action", "toggle_faucet"),
+        ("action", "toggle_stove"),
+    ]
     for action in actions:
         history_copy = deepcopy(history)
         history_copy[-1] = history_copy[-1]._replace(action=action[1])
@@ -62,9 +67,9 @@ def get_possible_actions(history):
 def plan_with_astar(env):
     open_list = []  # Priority queue for A*
     counter = itertools.count()
-    heapq.heappush(open_list, (0 + heuristic(env.state), 0, next(counter), 
-                               env.state, [],
-                               env.scheduled_events.copy(), list(env.history)))
+    heapq.heappush(open_list,
+                   (0 + heuristic(env.state), 0, next(counter), env.state, [],
+                    env.scheduled_events.copy(), list(env.history)))
     visited = set()
 
     while open_list:
@@ -84,7 +89,9 @@ def plan_with_astar(env):
         visited.add(state_signature)
 
         for action in get_possible_actions(history):
-            print(f"\nTrying action: {action} on state: {current_state}, after plan {plan}")
+            print(
+                f"\nTrying action: {action} on state: {current_state}, after plan {plan}"
+            )
             # Reset environment to the current state
             sim_env = deepcopy(env)
             sim_env.state = deepcopy(current_state)
@@ -97,8 +104,9 @@ def plan_with_astar(env):
             h = heuristic(sim_env.state)
             heapq.heappush(
                 open_list,
-                (new_cost + h, new_cost, next(counter), sim_env.state, plan + [action],
-                 deepcopy(sim_env.scheduled_events), list(sim_env.history)))
+                (new_cost + h, new_cost, next(counter), sim_env.state,
+                 plan + [action], deepcopy(
+                     sim_env.scheduled_events), list(sim_env.history)))
 
     return None  # No valid plan found
 
@@ -112,6 +120,7 @@ if plan:
 else:
     print("No valid plan found")
 
+
 def big_step_policy(history):
     global plan
     del history
@@ -119,6 +128,7 @@ def big_step_policy(history):
         return plan.pop(0)
     else:
         return None
+
 
 # # Running the plan
 # for _ in range(100):
