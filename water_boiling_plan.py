@@ -1,7 +1,7 @@
 import heapq
 from copy import deepcopy
 
-from water_boiling import env
+from water_boiling import world_model
 
 
 def heuristic(state):
@@ -85,7 +85,7 @@ def plan_with_astar(env):
 
 
 # Running the planner
-plan = plan_with_astar(env)
+plan = plan_with_astar(world_model)
 if plan:
     print("\nFound a plan:")
     for step, action in enumerate(plan):
