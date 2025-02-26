@@ -8,13 +8,13 @@ FillPot.
 For processes such as OverfillPot or Boil, the effects happen immediately after
 the condition holds for a certain number of time steps.0
 """
-from typing import Dict, List
+from typing import Dict, List, Tuple
 import random
 
 from water_boiling_processes import (AbstractState, CausalProcess,
                                      ToggleFaucet, ToggleStove, MoveToFaucet,
                                      MoveToStove, Noop, FillPot, OverfillPot,
-                                     Boil)
+                                     Spill, Boil)
 
 random.seed(0)
 
@@ -27,13 +27,14 @@ class ProcessWorldModel:
         self.processes = processes
         self.state = initial_state
         self.history = [initial_state]
-        self.scheduled_events: Dict[int, List[CausalProcess]] = {}
+        self.scheduled_events: Dict[int, List[Tuple[CausalProcess, int]]] = {}
         self.t: int = 0
 
     def small_step(self, action=None) -> None:
         initial_state = self.state
 
-        # 1. Process the action
+        # 1. Process the action; this is checked in the condition of some 
+        # processes
         if action is not None:
             # action is of the form do(var)=val
             variable, value = action
@@ -42,22 +43,26 @@ class ProcessWorldModel:
 
         # 2. Process any events scheduled for this timestep
         if self.t in self.scheduled_events:
-            for process in self.scheduled_events[self.t]:
-                self.state = process.effect(self.state)
+            for process, start_time in self.scheduled_events[self.t]:
+                # Add additional check here for checking if the condition is met
+                if process.condition_overall(self.history[start_time+1:]) and\
+                        process.condition_at_end(self.state):
+                    self.state = process.effect(self.state)
             del self.scheduled_events[self.t]
 
         self.history.append(self.state)
+        print(f"At time {self.t}, state is {self.state}")
 
         # 3. Schedule new events
         for process in self.processes:
-            if process.condition(self.history):
+            if process.condition_at_start(self.history):
                 delay = process.delay_distribution.sample()
                 schedule_time = self.t + delay
                 print(f"At time {self.t}, {process.name}.effect scheduled for "
                       f"{schedule_time}")
                 if schedule_time not in self.scheduled_events:
                     self.scheduled_events[schedule_time] = list()
-                self.scheduled_events[schedule_time].append(process)
+                self.scheduled_events[schedule_time].append((process, self.t))
 
         # 4. Check if state changed -- for printing and deactivating the wait
         # process
@@ -75,14 +80,14 @@ class ProcessWorldModel:
             ]
             if any(state_change):
                 for t in list(self.scheduled_events.keys()):
-                    if self.scheduled_events[t][0].name == 'Noop':
+                    if self.scheduled_events[t][0][0].name == 'Noop':
                         del self.scheduled_events[t]
                     # change action to None
                     self.state = self.state._replace(action=None)
 
         self.t += 1
 
-    def big_step(self, action=None) -> AbstractState:
+    def big_step(self, action=None, max_num_steps=50) -> AbstractState:
         """This action variable doesn't hold the same value as the action 
         attribute in the state.
         `action` here is passed to small_step for the first time step, and then
@@ -93,8 +98,10 @@ class ProcessWorldModel:
         None (i.e. after the first iteration).
         """
         initial_state = self.state
-        while self.state == initial_state:
+        num_steps = 0
+        while self.state == initial_state and num_steps < max_num_steps:
             self.small_step(action)
+            num_steps += 1
             # hypothesis: the action is only non-None for the first time step
             print(f"action in big_step: {action}")
             if action is not None:
@@ -115,6 +122,7 @@ world_model = ProcessWorldModel(
         Noop(),
         FillPot(),
         OverfillPot(),
+        Spill(),
         Boil()
     ],
     # initial state
@@ -162,10 +170,10 @@ if __name__ == "__main__":
         # after the pot is filled, which causes it to spill
         # boiling still works but the final state has water_spilled=True
         # None,
-        ("action", "toggle_faucet"),
-        ("action", "move_to_stove"),
-        ("action", "toggle_stove"),
-        ("action", "noop"),
+        # ("action", "toggle_faucet"),
+        # ("action", "move_to_stove"),
+        # ("action", "toggle_stove"),
+        # ("action", "noop"),
         # None  # wait for it to boil
     ]
 
@@ -177,6 +185,11 @@ if __name__ == "__main__":
         else:
             return None
 
+    def is_goal(state):
+        # return state.pot_location == "faucet"
+        # return state.faucet_on and state.pot_location == "faucet"
+        return state.pot_filled
+
     for _ in range(100):
         action = big_step_policy(world_model.history)
         print("\n" * 3)
@@ -186,7 +199,7 @@ if __name__ == "__main__":
             print(f"At time {world_model.t}, action=NONE")
 
         state = world_model.big_step(action)
-        if state.boiling:
+        if is_goal(state):
             print("\nWater is boiling!")
             break
     # show the history now that we are done

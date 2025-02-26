@@ -15,10 +15,24 @@ class CausalProcess:
 
     def __init__(self, name, delay_distribution):
         self.name = name
+        # How long is the delay between condition_at_start holds and effect
+        # happens?
         self.delay_distribution = delay_distribution
 
-    def condition(self, history):
+    def condition_at_start(self, history):
+        """The condition that must be hold for the process to be scheduled
+        """
         raise NotImplementedError
+    
+    def condition_overall(self, history_slice):
+        """The condition that must be hold for every state in the history slice
+        """
+        return True
+    
+    def condition_at_end(self, current_state):
+        """The condition that must be hold for the last state in the history 
+        slice."""
+        return True
 
     def effect(self, state):
         raise NotImplementedError
@@ -56,7 +70,7 @@ class ToggleFaucet(CausalProcess):
     def __init__(self):
         super().__init__('ToggleFaucet', GaussianDelay(5, 2))
 
-    def condition(self, history):
+    def condition_at_start(self, history):
 
         def check(s):
             return s.action == "toggle_faucet"
@@ -67,13 +81,14 @@ class ToggleFaucet(CausalProcess):
     def effect(self, state):
         return state._replace(faucet_on=not state.faucet_on, action=None)
 
+toggle_move_delay = 5
 
 class ToggleStove(CausalProcess):
 
     def __init__(self):
-        super().__init__('ToggleStove', GaussianDelay(5, 2))
+        super().__init__('ToggleStove', GaussianDelay(toggle_move_delay, 2))
 
-    def condition(self, history):
+    def condition_at_start(self, history):
 
         def check(s):
             return s.action == "toggle_stove"
@@ -88,9 +103,9 @@ class ToggleStove(CausalProcess):
 class MoveToFaucet(CausalProcess):
 
     def __init__(self):
-        super().__init__('MoveToFaucet', GaussianDelay(5, 2))
+        super().__init__('MoveToFaucet', GaussianDelay(toggle_move_delay, 2))
 
-    def condition(self, history):
+    def condition_at_start(self, history):
 
         def check(s):
             return s.action == "move_to_faucet"
@@ -107,7 +122,7 @@ class MoveToStove(CausalProcess):
     def __init__(self):
         super().__init__('MoveToStove', GaussianDelay(5, 2))
 
-    def condition(self, history):
+    def condition_at_start(self, history):
 
         def check(s):
             return s.action == "move_to_stove"
@@ -123,15 +138,15 @@ class MoveToStove(CausalProcess):
 class Noop(CausalProcess):
 
     def __init__(self):
-        super().__init__('Noop',
-                         GaussianDelay(20, 1))  # Random delay from Gaussian
+        super().__init__('Noop', GaussianDelay(20, 1))
 
-    def condition(self, history):
+    def condition_at_start(self, history):
 
         def check(s):
             return s.action == "noop"
 
-        return check(history[-1])
+        return check(history[-1]) and (len(history) == 1
+                                      or not check(history[-2]))
 
     def effect(self, state):
         return state._replace(action=None)
@@ -144,7 +159,7 @@ class FillPot(CausalProcess):
     def __init__(self):
         super().__init__('FillPot', GaussianDelay(5, 2))
 
-    def condition(self, history):
+    def condition_at_start(self, history):
 
         def check(s):
             return s.pot_location == "faucet" and s.faucet_on and \
@@ -152,6 +167,11 @@ class FillPot(CausalProcess):
 
         return check(history[-1]) and (len(history) == 1
                                        or not check(history[-2]))
+    
+    def condition_overall(self, history_slice):
+        def check(s):
+            return s.pot_location == "faucet" and s.faucet_on
+        return all([check(s) for s in history_slice])
 
     def effect(self, state):
         return state._replace(pot_filled=True)
@@ -162,7 +182,7 @@ class OverfillPot(CausalProcess):
     def __init__(self):
         super().__init__('OverfillPot', ConstantDelay(1))
 
-    def condition(self, history):
+    def condition_at_start(self, history):
 
         def check(s):
             return s.pot_location == "faucet" and s.faucet_on and \
@@ -179,22 +199,41 @@ class OverfillPot(CausalProcess):
     def effect(self, state):
         return state._replace(water_spilled=True)
 
+class Spill(CausalProcess):  
+    # water can spill whenever you're running the faucet and there's no pot to 
+    # catch the water
+
+    def __init__(self):
+        super().__init__('Spill', ConstantDelay(1))
+
+    def condition_at_start(self, history):
+
+        def check(s):
+            return s.pot_location != "faucet" and s.faucet_on and \
+                not s.water_spilled
+
+        return check(history[-1]) and (len(history) == 1
+                                       or not check(history[-2]))
+
+    def effect(self, state):
+        return state._replace(water_spilled=True)
 
 class Boil(CausalProcess):
 
     def __init__(self):
-        super().__init__('Boil', ConstantDelay(1))
+        super().__init__('Boil', GaussianDelay(10, 1))
 
-    def condition(self, history):
+    def condition_at_start(self, history):
 
         def check(s):
-            return s.pot_location == "stove" and s.stove_on and \
-                s.pot_filled and not s.boiling
-
-        suffix_passing_check = [check(s) for s in history[::-1]].index(False)
-
-        return suffix_passing_check > 10 + random.randint(
-            0, 30)  # this can be made probabilistic
+            return s.pot_location == "stove" and s.stove_on and s.pot_filled
+        return check(history[-1]) and (len(history) == 1
+                                       or not check(history[-2]))
+    
+    def condition_overall(self, history_slice):
+        def check(s):
+            return s.pot_location == "stove" and s.stove_on and s.pot_filled
+        return all([check(s) for s in history_slice])
 
     def effect(self, state):
         return state._replace(boiling=True)
