@@ -51,17 +51,6 @@ def get_possible_actions(history):
         history_copy[-1] = history_copy[-1]._replace(action=action[1])
         if action_to_process[action[1]].condition_at_start(history_copy):
             yield action
-    # if state.pot_location != "faucet":
-    #     actions.append(("action", "move_to_faucet"))
-    # if state.pot_location == "faucet" and not state.faucet_on:
-    #     actions.append(("action", "toggle_faucet"))
-    # if state.pot_filled and state.faucet_on:
-    #     actions.append(("action", "toggle_faucet"))
-    # if state.pot_location == "faucet" and state.pot_filled:
-    #     actions.append(("action", "move_to_stove"))
-    # if state.pot_location == "stove" and not state.stove_on:
-    #     actions.append(("action", "toggle_stove"))
-    # return actions
 
 
 def plan_with_astar(world_model):
