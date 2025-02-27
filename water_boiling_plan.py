@@ -64,17 +64,18 @@ def get_possible_actions(history):
     # return actions
 
 
-def plan_with_astar(env):
+def plan_with_astar(world_model):
     open_list = []  # Priority queue for A*
     counter = itertools.count()
-    heapq.heappush(open_list,
-                   (0 + heuristic(env.state), 0, next(counter), env.state, [],
-                    env.scheduled_events.copy(), list(env.history)))
+    heapq.heappush(
+        open_list,
+        (0 + heuristic(world_model.state), 0, next(counter), world_model.state,
+         [], world_model.scheduled_events.copy(), list(world_model.history)))
     visited = set()
 
     while open_list:
-        _, cost, _, current_state, plan, scheduled_events, history = heapq.heappop(
-            open_list)
+        (_, cost, _, current_state, plan, scheduled_events,
+         history) = heapq.heappop(open_list)
 
         if is_goal(current_state):
             return plan  # Return the action plan
@@ -90,23 +91,23 @@ def plan_with_astar(env):
 
         for action in get_possible_actions(history):
             print(
-                f"\nTrying action: {action} on state: {current_state}, after plan {plan}"
-            )
+                f"\nTrying action: {action} on state: {current_state}, after "
+                f"plan {plan}")
             # Reset environment to the current state
-            sim_env = deepcopy(env)
-            sim_env.state = deepcopy(current_state)
-            sim_env.scheduled_events = deepcopy(scheduled_events)
-            sim_env.history = deepcopy(history)
-            sim_env.t = len(sim_env.history) - 1
+            world_model_ = deepcopy(world_model)
+            world_model_.state = deepcopy(current_state)
+            world_model_.scheduled_events = deepcopy(scheduled_events)
+            world_model_.history = deepcopy(history)
+            world_model_.t = len(world_model_.history) - 1
 
-            sim_env.big_step(action)
+            world_model_.big_step(action)
             new_cost = cost + 1  # Each action has a cost of 1
-            h = heuristic(sim_env.state)
+            h = heuristic(world_model_.state)
             heapq.heappush(
                 open_list,
-                (new_cost + h, new_cost, next(counter), sim_env.state,
-                 plan + [action], deepcopy(
-                     sim_env.scheduled_events), list(sim_env.history)))
+                (new_cost + h, new_cost, next(counter), world_model_.state,
+                 plan + [action], deepcopy(world_model_.scheduled_events),
+                 list(world_model_.history)))
 
     return None  # No valid plan found
 

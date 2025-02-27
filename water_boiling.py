@@ -19,7 +19,9 @@ from water_boiling_processes import (AbstractState, CausalProcess,
 random.seed(0)
 
 
-# The environment keeps track of the state, history, and cause-effects whose condition has been triggered but whose effect has not yet "landed", meaning they are scheduled for the future
+# The environment keeps track of the state, history, and cause-effects whose
+# condition has been triggered but whose effect has not yet "landed", meaning
+# they are scheduled for the future
 class ProcessWorldModel:
 
     def __init__(self, processes: List[CausalProcess],

@@ -2,7 +2,7 @@ from typing import Dict, List
 from collections import namedtuple
 import random
 
-toggle_move_delay = 5
+stove_toggle_duration = 5
 
 AbstractState = namedtuple('State', [
     'boiling', 'pot_location', 'stove_on', 'faucet_on', 'pot_filled',
@@ -87,7 +87,7 @@ class ToggleFaucet(CausalProcess):
 class ToggleStove(CausalProcess):
 
     def __init__(self):
-        super().__init__('ToggleStove', GaussianDelay(toggle_move_delay, 2))
+        super().__init__('ToggleStove', GaussianDelay(stove_toggle_duration, 2))
 
     def condition_at_start(self, history):
 
@@ -104,7 +104,7 @@ class ToggleStove(CausalProcess):
 class MoveToFaucet(CausalProcess):
 
     def __init__(self):
-        super().__init__('MoveToFaucet', GaussianDelay(toggle_move_delay, 2))
+        super().__init__('MoveToFaucet', GaussianDelay(5, 2))
 
     def condition_at_start(self, history):
 
