@@ -1,6 +1,6 @@
 import heapq
 from copy import deepcopy
-import itertools  # Add this import for the counter
+import itertools
 
 from water_boiling import world_model
 from water_boiling_processes import (Noop, ToggleFaucet, ToggleStove,
