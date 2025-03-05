@@ -32,14 +32,14 @@ class ProcessWorldModel:
         self.scheduled_events: Dict[int, List[Tuple[CausalProcess, int]]] = {}
         self.t: int = 0
 
-    def small_step(self, action=None) -> None:
+    def small_step(self, small_step_action=None) -> None:
         initial_state = self.state
 
         # 1. Process the action; this is checked in the condition of some
         # processes
-        if action is not None:
+        if small_step_action is not None:
             # action is of the form do(var)=val
-            variable, value = action
+            variable, value = small_step_action
             self.state = self.state._replace(**{variable: value})
             print(f"At time {self.t}, do({variable}={value})")
 
@@ -85,11 +85,11 @@ class ProcessWorldModel:
                     if self.scheduled_events[t][0][0].name == 'Noop':
                         del self.scheduled_events[t]
                     # change action to None
-                    self.state = self.state._replace(action=None)
+                    # self.state = self.state._replace(action=None)
 
         self.t += 1
 
-    def big_step(self, action=None, max_num_steps=50) -> AbstractState:
+    def big_step(self, big_step_action=None, max_num_steps=50) -> AbstractState:
         """This action variable doesn't hold the same value as the action 
         attribute in the state.
         `action` here is passed to small_step for the first time step, and then
@@ -101,15 +101,20 @@ class ProcessWorldModel:
         """
         initial_state = self.state
         num_steps = 0
-        while self.state == initial_state and num_steps < max_num_steps:
-            self.small_step(action)
+        action_effect_have_not_occurred = True
+        # while self.state == initial_state and num_steps < max_num_steps:
+        while action_effect_have_not_occurred and num_steps < max_num_steps:
+            self.small_step(big_step_action)
             num_steps += 1
             # hypothesis: the action is only non-None for the first time step
-            print(f"action in big_step: {action}")
-            if action is not None:
+            print(f"action in big_step: {big_step_action}")
+            if big_step_action is not None:
                 # update the initial state and set action to None
                 initial_state = self.state
-                action = None
+                big_step_action = None
+                action_effect_have_not_occurred = True
+            else:
+                action_effect_have_not_occurred = initial_state == self.state
         print(f"Stopping big step because state changed from this:\n"
               f"\t{initial_state}\nto this:\n\t{self.state}")
         return self.state
